@@ -1,0 +1,17 @@
+==========================
+How the Matlab model works
+==========================
+
+# 'cluster_script_20090119' is called
+	# A copy of the filaments to be worked on are created
+	# 'startClusterJob_v3' is called with that set of filaments
+	  and a set of paramters to evaluate
+# 'startClusterJob_v3' takes over
+	# The job manager is contacted and connected to
+	# The cluster is polled to see what resources are available
+	# The desired runs are split up as tasks amoung the free workers
+	# 'runSim_v1' is passed as the function for the tasks to run
+# So looking into each task, we see 'runSim_v1'
+	# Initialize the random number generator
+	# For each iteration of each run...
+		# Reset the initial conditions
