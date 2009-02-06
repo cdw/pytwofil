@@ -30,6 +30,10 @@ class XB:
 	
 	def __repr__(self):
 		pass
+
+	def bop(self):
+		"""Knock an unbound XB around, return a new position """
+		
 		
 
 class ThickFil:
