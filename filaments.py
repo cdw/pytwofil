@@ -3,7 +3,11 @@
 ###############################################################################
 # Revisions
 #    v 0.01/cdw     20090201  (Re)Created
-# 
+#    v 0.02/cdw     20090209  Essential structures in, bop (re)written
+#
+# ToDo
+#    u cdw          20090209  (Re)write the binding check function
+#
 ###############################################################################
 
 import random as rn
@@ -26,37 +30,41 @@ class XB:
 		# Current state and identity of XB
 		self.id = head_id
 		self.loc = self.thick.mln + self.thick.uda + self.id * self.thick.s
+		self.rest_head_loc() # Sets head_loc to rest location
 		self.bound = False
+		self.state = 1 # 1 is unbound, 2 is loosely, 3 is strongly
 	
 	def __repr__(self):
 		pass
 
 	def bop(self):
-		"""Knock an unbound XB around, return a new position """
+		"""Knock an unbound XB around, update and return head position """
 		Fmag = rn.normalvariate(self.Fm,self.Fv)
 		Fdir = rn.uniform(0, 2*pi)
 		Fperp = Fmag * sin(self.Cs - Fdir)
 		Fpara = Fmag * cos(self.Cs - Fdir)
 		Rad = (Fpara / self.Gk) + self.Gs
 		Phi = (Fperp * Rad / self.Ck) + self.Cs
-		return (Rad * cos(Phi), Rad * sin(Phi))
+		Xoffset = Rad * cos(Phi)
+		Yoffset = Rad * sin(Phi)
+		self.head_loc = (self.loc + Xoffset, Yoffset)
+		return (Xoffset, Yoffset)
+
+	def bind(self):
+		"""Check if the XB binds, update if it does"""
+		thin_loc = self.thin.closest_binding_site(self)
+		dist = hypot(thin_loc - self.head_loc[0],
+					 self.thick.sep - self.head_loc[1])
+		if 1-(exp(-pow(dist,2))) < rn.random() and Af.bst(MinInd)==0:
+			pass
+		
+		# Unfinished
 	
-	def head_loc(self, use_rest_values=False):
-		"""Return the location of myosin head"""
-		# Unpack component values (or their rest positions)
-		if use_rest_values == False:
-			[T,N,C,G]=[self.T, self.N, self.C, self.G]
-		else:
-			[T,N,C,G]=[self.R_T, self.R_N, self.R_C, self.R_G]
-		# Calculate the x and y location of the head
-		# y_T = 0 # this is assumed
-		x_C = cos(T)*N
-		y_C = sin(T)*N
-		x_H = x_C + cos(C)*G
-		y_H = y_C + sin(C)*G
-		# Give back a tuple
-		return (x_H, y_H)
-	
+	def rest_head_loc(self):
+		"""Set the head loc to its rest location"""
+		self.head_loc = (self.loc + self.Gs * cos(self.Cs),
+						 self.Gs * sin(self.Cs))
+
 
 class ThickFil:
 	"""An instantiation of the 2D, 2fil system thick filament"""
@@ -68,6 +76,8 @@ class ThickFil:
 		self.mln = mln # location of the m-line
 		self.sep = sep # distance to thin fil
 		self.thin = thin_fil # opposing filament
+		self.loc = ([self.mln + self.uda + (x * self.s)
+					 for x in range(self.n)])
 		if thin_fil is not None:
 			self.myo = [XB(i, self, self.thin) for i in range(self.n)]
 		else:
@@ -81,15 +91,32 @@ class ThinFil:
 		self.n = 30    # number of thin fil sites
 		self.zln = zln # location of the z-line
 		self.thick = thick_fil # thick fil facing this thin fil
+		self.loc = ([self.zln - (self.n - x) * self.s
+					 for x in range(self.n)])
+		self.bound = [False for x in range(self.n)]
 
 	def link_thick(self, thick_fil):
 		"""An easy way to remind oneself to link to the thick fil"""
 		self.thick = thick_fil
 
+	def closest_binding_site(self,XB):
+		"""Return the closest binding site, but only if it is free"""
+		# Make the above line accurate
+		closest_val = min([act_loc - XB.head_loc for act_loc in self.loc])
+		closest_ind = self.loc.index(closest_val)
+		if self.bound[closest_ind] is False:
+			return (0, 
+		else:
+			return (closest_val, closest_ind)
+		
 
 class FilPair:
-	def _init_(self):
-		thin = ThinFil()
-		thick = ThickFil(thin_fil=thin)
-		thin.link_thick(thick)
-		
+	def __init__(self, hsl=1200):
+		"""Creates and returns a set of two fils with the specified half-sl"""
+		self.thin = ThinFil(hsl)
+		self.thick = ThickFil(thin_fil=self.thin)
+		self.thin.link_thick(self.thick)
+
+
+# Test by creation of a FilPair
+fp = FilPair(1100)
