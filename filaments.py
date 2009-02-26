@@ -7,11 +7,13 @@
 #
 # ToDo
 #    u cdw          20090209  (Re)write the binding check function
+#    u cdw          20090224  Fix the 'dist' in trans_loosely etc.
 #
 ###############################################################################
 
 import random as rn
 from math import *
+from scipy.optimize import fmin
 
 class XB:
 	"""A crossbridge that will be instantiated by the thick filament"""
@@ -19,8 +21,10 @@ class XB:
 		# The first thing to do is define our default parameters.
 		self.Cs = pi/3 # rest angle of converter domain
 		self.Ck = 200  # torsional spring const of converter domain
+		self.Cv = (pi/3, pi/3, 1.2*pi/3) # normal and rigor values of Cs
 		self.Gs = 10.5 # rest length of globular domain
 		self.Gk = 5    # spring constant of globular domain
+		self.Gv = (5, 5, 5) # normal and rigor values of Gs
 		self.Fm = 0    # mean of forces exerted on myosin heads
 		self.Fv = 10.0 # variance of forces exerted on myosin heads
 		self.Bd = 0.55 # dist at which binding becomes likely
@@ -32,8 +36,8 @@ class XB:
 		self.loc = self.thick.mln + self.thick.uda + self.id * self.thick.s
 		self.rest_head_loc() # Sets head_loc to rest location
 		self.bound = False
-		self.state = 1 # 1 is unbound, 2 is loosely, 3 is strongly
-	
+		self.state = 0 # 0 is unbound, 1 is loosely, 2 is strongly
+
 	def __repr__(self):
 		pass
 
@@ -52,18 +56,76 @@ class XB:
 
 	def bind(self):
 		"""Check if the XB binds, update if it does"""
-		thin_loc = self.thin.closest_binding_site(self)
-		dist = hypot(thin_loc - self.head_loc[0],
+		thin_loc = self.thin.closest_binding_site(self) # get closest thin site
+		# thin_loc = (closest_val, closest_ind) or (False, False)
+		if thin_loc is False: # if that site is alrady occupied
+			return # there's no binding
+		dist = dist_to_thin(thin_loc)
+		if 1 - (exp(-pow(dist, 1/self.Bd))) < rn.random():
+			# Where we are close enough, bind
+			self.bound = thin_loc  # Where XB binds to 
+			self.state = 1 # Now in the loosely bound state
+			self.thin.bound[thin_loc] = self.id # Thin fil link back
+	
+	def trans_loosely(self):
+		"""When in the loosely bound state: unbind, strongly bind, or pass"""
+		dist = glob_len()
+		angl = conv_ang()
+		random = rn.random()
+		# possibly bind tightly or unbind
+		if 1-.001*100/sqrt(2*0.2515)*(1-tanh(1*sqrt(2*0.2515)*(dist-6))) < random:
+			self.state = 2
+			self.Cs = self.Cv[2]
+		elif (pow(exp(15 * self.Gk * 0.2515 * 
+				 pow(dist - self.Gs,2) + 
+				 3 * self.Cs * 0.2515 / dist *
+				 (angl - self.Cs)),2)  < random):
+			self.thin.bound[self.bound] = False
+			self.bound = False
+			self.state = 0
+	
+	def trans_tightly(self):
+		"""When in the tightly bound state: unbind, loosely bind, or pass"""
+		dist = glob_len()
+		angl = conv_ang()		
+		random = rn.random()
+		# possibly unbind or become loosely bound
+		if (0.005 * 1 / exp(self.Gk * 0.2515 *pow(dist-self.Gv[1],2) +
+				    self.Ck * 0.2515 / dist *pow(angl-self.Cv[1],2) -
+				    self.Gk * 0.2515 *pow(dist-self.Gv[2],2) -
+				    self.Ck * 0.2515 / dist *pow(angl-self.Cv[2],2)
+				)) < random:
+			self.state = 1
+			self.Cs = self.Cv[1]
+		elif (.001*(sqrt(self.Gk*0.2515)*
+			    (sqrt(3600*pow(dist,2)) - 40*dist)+ 20)) > random:
+			self.thin.bound[self.bound] = False
+			self.bound = False
+			self.state = 0
+			self.Cs = self.Cv[0]
+	
+	def dist_to_thin(self, thin_point):
+		return hypot(self.thin.loc[thin_point] - self.head_loc[0],
 					 self.thick.sep - self.head_loc[1])
-		if 1-(exp(-pow(dist,2))) < rn.random() and Af.bst(MinInd)==0:
-			pass
-		
-		# Unfinished
+	
+	def glob_len(self):
+		"""Return the globular length for a bound XB"""
+		return hypot(self.thin.loc[self.bound] - self.loc, self.thick.sep)
+	
+	def conv_ang(self):
+		"""Return the converter angle for a bound XB"""
+		return atan2(self.thin.loc[self.bound] - self.loc,self.thick.sep)
 	
 	def rest_head_loc(self):
 		"""Set the head loc to its rest location"""
 		self.head_loc = (self.loc + self.Gs * cos(self.Cs),
 						 self.Gs * sin(self.Cs))
+
+
+	def transition(self):
+		"""Transition to a new state, maybe"""
+		if True:
+			pass
 
 
 class ThickFil:
@@ -101,14 +163,13 @@ class ThinFil:
 
 	def closest_binding_site(self,XB):
 		"""Return the closest binding site, but only if it is free"""
-		# Make the above line accurate
 		closest_val = min([act_loc - XB.head_loc for act_loc in self.loc])
 		closest_ind = self.loc.index(closest_val)
 		if self.bound[closest_ind] is False:
-			return (0, 
+			return closest_ind
 		else:
-			return (closest_val, closest_ind)
-		
+			return False
+
 
 class FilPair:
 	def __init__(self, hsl=1200):
@@ -116,6 +177,10 @@ class FilPair:
 		self.thin = ThinFil(hsl)
 		self.thick = ThickFil(thin_fil=self.thin)
 		self.thin.link_thick(self.thick)
+		
+	def settle(self):
+		"""Balance the forces felt by the two filaments"""
+		pass
 
 
 # Test by creation of a FilPair
