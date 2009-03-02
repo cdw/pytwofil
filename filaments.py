@@ -39,7 +39,8 @@ class XB:
 		self.state = 0 # 0 is unbound, 1 is loosely, 2 is strongly
 
 	def __repr__(self):
-		pass
+		return ('XB #'+str(self.id)+' Info\n===========\nLoc:   '+str(self.loc)+
+			'\nBound: '+str(self.bound)+'\nState: '+str(self.state))
 
 	def bop(self):
 		"""Knock an unbound XB around, update and return head position """
@@ -144,6 +145,13 @@ class ThickFil:
 			self.myo = [XB(i, self, self.thin) for i in range(self.n)]
 		else:
 			print('Warning: ThickFil not given a thin_fil, XBs not created')
+	
+	def __repr__(self):
+		o_loc = ([self.mln + self.uda + (x * self.s) for x in range(self.n)])
+		return ('Thick Fil Info\n==============\nLoc Offset: ' + 
+			str([self.loc[i] - o_loc[i] for i in range(len(o_loc))])+
+			'\nBound: '+str([m.bound for m in self.myo])+
+			'\nState: '+str([m.state for m in self.myo]))
 
 
 class ThinFil:
@@ -156,6 +164,12 @@ class ThinFil:
 		self.loc = ([self.zln - (self.n - x) * self.s
 					 for x in range(self.n)])
 		self.bound = [False for x in range(self.n)]
+	
+	def __repr__(self):
+		o_loc = ([self.zln - (self.n - x) * self.s for x in range(self.n)])
+		return ('Thin Fil Info\n=============\nLoc Offset: '+
+			str([self.loc[i] - o_loc[i] for i in range(len(o_loc))])+
+			'\nBound: '+str(self.bound))
 
 	def link_thick(self, thick_fil):
 		"""An easy way to remind oneself to link to the thick fil"""
