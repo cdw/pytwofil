@@ -194,7 +194,11 @@ class FilPair:
 		
 	def settle(self):
 		"""Balance the forces felt by the two filaments"""
-		pass
+		# Create our initial guess, which is just the current
+		# location of the nodes along the thick and thin filaments
+		x0 = self.thick.loc + self.thin.loc
+		
+		# Settle and subfunctions are unfinished
 
 
 # Test by creation of a FilPair
