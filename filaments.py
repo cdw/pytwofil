@@ -12,7 +12,7 @@
 ###############################################################################
 
 import random as rn
-from math import *
+from numpy import *
 from scipy.optimize import fmin
 
 class XB:
@@ -115,7 +115,7 @@ class XB:
 	
 	def conv_ang(self):
 		"""Return the converter angle for a bound XB"""
-		return atan2(self.thin.loc[self.bound] - self.loc,self.thick.sep)
+		return arctan2(self.thin.loc[self.bound] - self.loc,self.thick.sep)
 	
 	def rest_head_loc(self):
 		"""Set the head loc to its rest location"""
@@ -196,29 +196,95 @@ class FilPair:
 		"""Balance the forces felt by the two filaments"""
 		# Create our initial guess, which is just the current
 		# location of the nodes along the thick and thin filaments
-		x0 = self.thick.loc + self.thin.loc
+		x0 = array(self.thick.loc + self.thin.loc)
 		# Unpack some variables for ease of writing the force function
-		Mk  = self.thick.k
-		Ms  = self.thick.s
-		Mu = self.thick.uda;
-		Ml = [m.bound for m in self.thick.myo]
-		Mb = [m.state for m in self.thick.myo]
-		Gk  = [m.Gk for m in self.thick.myo]
-		Gs  = [m.Gs for m in self.thick.myo]
-		Ck = [m.Ck for m in self.thick.myo]
-		Cs = [m.Cs for m in self.thick.myo]
-		Ak  = self.thin.k
-		As  = self.thin.s
-		Al = self.thin.bound
+		Mk = self.thick.k # myosin spring const
+		Ms = self.thick.s # myosin spring length
+		Mu = self.thick.uda #  thick fil undecorated length
+		Ml = array([m.bound for m in self.thick.myo]) # linkers when bound
+		Mb = array([m.state for m in self.thick.myo]) # bound state
+		Mn = len(self.thick.myo) # number of myosins
+		Gk  = array([m.Gk for m in self.thick.myo]) # glob spring consts
+		Gs  = array([m.Gs for m in self.thick.myo]) # glob spring lengths
+		Ck = array([m.Ck for m in self.thick.myo]) # converter spring const
+		Cs = array([m.Cs for m in self.thick.myo]) # converter rest angle
+		Ak  = self.thin.k # actin spring constant
+		As  = self.thin.s # actin spring rest length
+		Al = self.thin.bound # actin linkers
+		An = len(self.thin.loc) # number of actin sites
+		Sep = self.thick.sep # Separation between thick and thin fils
+		Zln = self.thin.zln # The end of the  1/2 sarc, the z-line
 		
-		def  force(self, x):
+		def  force(x):
 			""" Return a matrix of the forces on all points of a two 
 			filament system based on the locations fed in. It is
 			good to note that the location inputs are in the form:
-			[ThickXLoc1, ThickXLoc2,...,ThinXLoc1,ThinXLoc2...]"""
+			[ThickXLoc0, ThickXLoc1,...,ThinXLoc0,ThinXLoc1...]
+			and that the outputs are in the form:
+			[FThickXLoc0, FThickXLoc1,... and so on]"""
+			# Initialize the force return array
+			f = empty_like(x)
+			## Begin with the forces on the thick filaments
+			# First thick filament site
+			f[0] = Mk*(x[1]-x[0]-Ms) - Mk*(x[0]-0-Mu) # force from adj site
+			if Ml[0] is not False:
+				G = hypot(x[Mn+Ml[0]] - x[0], Sep)
+				C = arctan2(Sep, x[Mn+Ml[0]] - x[0])
+				f[0] = (f[0] +  
+					Gk[0] * (G-Gs[0]) * cos(C) - 
+					(1 / G) * Ck[0] * (C-Cs[0]) * sin(C))
+			# Most thick filament sites
+			for i in range(1, Mn-1):
+				f[i]=Mk*(x[i-1]-x[i]-Ms) - Mk*(x[i]-x[i-1]-Ms)
+				if Ml[i] is not False:
+					G = hypot(x[Mn+Ml[i]] - x[i], Sep)
+					C = arctan2(Sep, x[Mn+Ml[i]] - x[i])
+					f[i] = (f[i] +  
+						Gk[i] * (G-Gs[i]) * cos(C) - 
+						(1 / G) * Ck[i] * (C-Cs[i]) * sin(C))
+			# Last thick filament site
+			f[Mn-1] = - Mk*(x[Mn-1]-x[Mn-1-1]-Ms)
+			if Ml[Mn-1] is not False:
+				G = hypot(x[Mn+Ml[Mn-1]] - x[Mn-1], Sep)
+				C = arctan2(Sep, x[Mn+Ml[Mn-1]] - x[Mn-1])
+				f[Mn-1] = (f[Mn-1] +  
+					Gk[Mn-1] * (G-Gs[Mn-1]) * cos(C) - 
+					(1 / G) * Ck[Mn-1] * (C-Cs[Mn-1]) * sin(C))
+			## Continue to the forces on the thin filament
+			# First thin filament site
+			f[Mn] = Ak*(x[Mn+1]-x[Mn]-As)
+			if Al[0] is not False:
+				G = hypot(x[Mn+0]-x[Al[0]], Sep)
+				C = arctan2(Sep, x[Mn+0]-x[Al[0]])
+				f[Mn] = (f[Mn] - 
+					Gk[Al[0]] * (G-Gs[Al[0]]) * cos(C) + 
+					(1 / G) * Ck[Al[0]] * (C-Cs[Al[0]]) * sin(C))
+			# Most thin filament sites
+			for i in range(Mn+1, Mn+An-1):
+				f[i] = Ak*(x[i+1]-x[i]-As) - Ak*(x[i]-x[i-1]-As)
+				if Al[i-Mn] is not False:
+					G= hypot(x[i]-x[Al[i-Mn]], Sep)
+					C = arctan2(Sep, x[i]-x[Al[i-Mn]])
+					f[i] = (f[i] - 
+						Gk[Al[i-Mn]] * (G-Gs[Al[i-Mn]]) * cos(C) + 
+						(1 / G) * Ck[Al[i-Mn]] * (C-Cs[Al[i-Mn]]) * sin(C))
+			# Last thin filament site
+			f[Mn+An-1] = Ak*(Zln-x[Mn+An-1]-As) - Ak*(x[Mn+An-1]-x[Mn+An-2]-As)
+			if Al[An-1] is not False:
+				G = hypot(x[Mn+An-1]-x[Al[An-1]], Sep)
+				C = arctan2(Sep, x[Mn+An-1]-x[Al[An-1]])
+				f[Mn+An-1] = (f[Mn+An-1] - 
+					Gk[Al[An-1]] * (G-Gs[Al[An-1]]) * cos(C) + 
+					(1 / G) * Ck[Al[An-1]] * (C-Cs[Al[An-1]]) * sin(C))
+			return f
 			
-		# Settle and subfunctions are unfinished
+		# Execute the force generating equation once to check that there are 
+		# no obvious and horrible errors
+		f = force(x0)
+
+		# Settle is unfinished
 
 
 # Test by creation of a FilPair
 fp = FilPair(1100)
+fp.settle()
