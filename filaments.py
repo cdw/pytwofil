@@ -197,7 +197,26 @@ class FilPair:
 		# Create our initial guess, which is just the current
 		# location of the nodes along the thick and thin filaments
 		x0 = self.thick.loc + self.thin.loc
+		# Unpack some variables for ease of writing the force function
+		Mk  = self.thick.k
+		Ms  = self.thick.s
+		Mu = self.thick.uda;
+		Ml = [m.bound for m in self.thick.myo]
+		Mb = [m.state for m in self.thick.myo]
+		Gk  = [m.Gk for m in self.thick.myo]
+		Gs  = [m.Gs for m in self.thick.myo]
+		Ck = [m.Ck for m in self.thick.myo]
+		Cs = [m.Cs for m in self.thick.myo]
+		Ak  = self.thin.k
+		As  = self.thin.s
+		Al = self.thin.bound
 		
+		def  force(self, x):
+			""" Return a matrix of the forces on all points of a two 
+			filament system based on the locations fed in. It is
+			good to note that the location inputs are in the form:
+			[ThickXLoc1, ThickXLoc2,...,ThinXLoc1,ThinXLoc2...]"""
+			
 		# Settle and subfunctions are unfinished
 
 
