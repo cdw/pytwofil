@@ -139,7 +139,7 @@ class ThickFil:
 		self.mln = mln # location of the m-line
 		self.sep = sep # distance to thin fil
 		self.thin = thin_fil # opposing filament
-		self.loc = ([self.mln + self.uda + (x * self.s)
+		self.loc = array([self.mln + self.uda + (x * self.s)
 					 for x in range(self.n)])
 		if thin_fil is not None:
 			self.myo = [XB(i, self, self.thin) for i in range(self.n)]
@@ -155,14 +155,16 @@ class ThickFil:
 
 
 class ThinFil:
-	def __init__(self, zln=1000, thick_fil=None):
+	def __init__(self, zln=1200, thick_fil=None):
 		self.k = 1743  # spring const between thin fil sites
 		self.s = 37.3  # rest length betwen thin fil sites
 		self.n = 30    # number of thin fil sites
 		self.zln = zln # location of the z-line
 		self.thick = thick_fil # thick fil facing this thin fil
-		self.loc = ([self.zln - (self.n - x) * self.s
+		self.loc = array([self.zln - (self.n - x) * self.s
 					 for x in range(self.n)])
+		if self.loc[0] < 0:
+			print('Warning: Thin Fil error, fil is too short')
 		self.bound = [False for x in range(self.n)]
 	
 	def __repr__(self):
@@ -196,7 +198,7 @@ class FilPair:
 		"""Balance the forces felt by the two filaments"""
 		# Create our initial guess, which is just the current
 		# location of the nodes along the thick and thin filaments
-		x0 = array(self.thick.loc + self.thin.loc)
+		x0 = hstack((self.thick.loc, self.thin.loc))
 		# Unpack some variables for ease of writing the force function
 		Mk = self.thick.k # myosin spring const
 		Ms = self.thick.s # myosin spring length
@@ -223,11 +225,11 @@ class FilPair:
 			and that the outputs are in the form:
 			[FThickXLoc0, FThickXLoc1,... and so on]"""
 			# Initialize the force return array
-			f = empty_like(x)
+			f = ones_like(x)
 			## Begin with the forces on the thick filaments
 			# First thick filament site
 			f[0] = Mk*(x[1]-x[0]-Ms) - Mk*(x[0]-0-Mu) # force from adj site
-			if Ml[0] is not False:
+			if Ml[0] != False:
 				G = hypot(x[Mn+Ml[0]] - x[0], Sep)
 				C = arctan2(Sep, x[Mn+Ml[0]] - x[0])
 				f[0] = (f[0] +  
@@ -235,8 +237,8 @@ class FilPair:
 					(1 / G) * Ck[0] * (C-Cs[0]) * sin(C))
 			# Most thick filament sites
 			for i in range(1, Mn-1):
-				f[i]=Mk*(x[i-1]-x[i]-Ms) - Mk*(x[i]-x[i-1]-Ms)
-				if Ml[i] is not False:
+				f[i]=Mk*(x[i+1]-x[i]-Ms) - Mk*(x[i]-x[i-1]-Ms)
+				if Ml[i] != False:
 					G = hypot(x[Mn+Ml[i]] - x[i], Sep)
 					C = arctan2(Sep, x[Mn+Ml[i]] - x[i])
 					f[i] = (f[i] +  
@@ -244,7 +246,7 @@ class FilPair:
 						(1 / G) * Ck[i] * (C-Cs[i]) * sin(C))
 			# Last thick filament site
 			f[Mn-1] = - Mk*(x[Mn-1]-x[Mn-1-1]-Ms)
-			if Ml[Mn-1] is not False:
+			if Ml[Mn-1] != False:
 				G = hypot(x[Mn+Ml[Mn-1]] - x[Mn-1], Sep)
 				C = arctan2(Sep, x[Mn+Ml[Mn-1]] - x[Mn-1])
 				f[Mn-1] = (f[Mn-1] +  
@@ -253,7 +255,7 @@ class FilPair:
 			## Continue to the forces on the thin filament
 			# First thin filament site
 			f[Mn] = Ak*(x[Mn+1]-x[Mn]-As)
-			if Al[0] is not False:
+			if Al[0] != False:
 				G = hypot(x[Mn+0]-x[Al[0]], Sep)
 				C = arctan2(Sep, x[Mn+0]-x[Al[0]])
 				f[Mn] = (f[Mn] - 
@@ -261,8 +263,9 @@ class FilPair:
 					(1 / G) * Ck[Al[0]] * (C-Cs[Al[0]]) * sin(C))
 			# Most thin filament sites
 			for i in range(Mn+1, Mn+An-1):
+				print('On actin site: ' + str(i-Mn))
 				f[i] = Ak*(x[i+1]-x[i]-As) - Ak*(x[i]-x[i-1]-As)
-				if Al[i-Mn] is not False:
+				if Al[i-Mn] != False:
 					G= hypot(x[i]-x[Al[i-Mn]], Sep)
 					C = arctan2(Sep, x[i]-x[Al[i-Mn]])
 					f[i] = (f[i] - 
@@ -270,7 +273,7 @@ class FilPair:
 						(1 / G) * Ck[Al[i-Mn]] * (C-Cs[Al[i-Mn]]) * sin(C))
 			# Last thin filament site
 			f[Mn+An-1] = Ak*(Zln-x[Mn+An-1]-As) - Ak*(x[Mn+An-1]-x[Mn+An-2]-As)
-			if Al[An-1] is not False:
+			if Al[An-1] != False:
 				G = hypot(x[Mn+An-1]-x[Al[An-1]], Sep)
 				C = arctan2(Sep, x[Mn+An-1]-x[Al[An-1]])
 				f[Mn+An-1] = (f[Mn+An-1] - 
@@ -280,11 +283,11 @@ class FilPair:
 			
 		# Execute the force generating equation once to check that there are 
 		# no obvious and horrible errors
-		f = force(x0)
+		return force(x0)
 
 		# Settle is unfinished
 
 
 # Test by creation of a FilPair
-fp = FilPair(1100)
+fp = FilPair(1200)
 fp.settle()
