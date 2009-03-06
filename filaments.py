@@ -12,8 +12,9 @@
 ###############################################################################
 
 import random as rn
-from numpy import *
-from scipy.optimize import fmin
+import numpy as np
+from numpy import array,cos,sin,arctan2,hypot,pi
+from scipy.optimize import fsolve
 
 class XB:
 	"""A crossbridge that will be instantiated by the thick filament"""
@@ -198,7 +199,7 @@ class FilPair:
 		"""Balance the forces felt by the two filaments"""
 		# Create our initial guess, which is just the current
 		# location of the nodes along the thick and thin filaments
-		x0 = hstack((self.thick.loc, self.thin.loc))
+		x0 = np.hstack((self.thick.loc, self.thin.loc))
 		# Unpack some variables for ease of writing the force function
 		Mk = self.thick.k # myosin spring const
 		Ms = self.thick.s # myosin spring length
@@ -225,7 +226,7 @@ class FilPair:
 			and that the outputs are in the form:
 			[FThickXLoc0, FThickXLoc1,... and so on]"""
 			# Initialize the force return array
-			f = ones_like(x)
+			f = np.ones_like(x)
 			## Begin with the forces on the thick filaments
 			# First thick filament site
 			f[0] = Mk*(x[1]-x[0]-Ms) - Mk*(x[0]-0-Mu) # force from adj site
@@ -263,6 +264,11 @@ class FilPair:
 					(1 / G) * Ck[Al[0]] * (C-Cs[Al[0]]) * sin(C))
 			# Most thin filament sites
 			for i in range(Mn+1, Mn+An-1):
+				print('=================')
+				print('i is : '+str(i))
+				print('x[i] is : '+str(x[i]))
+				if i >47:
+					pass
 				f[i] = Ak*(x[i+1]-x[i]-As) - Ak*(x[i]-x[i-1]-As)
 				if Al[i-Mn] != False:
 					G= hypot(x[i]-x[Al[i-Mn]], Sep)
@@ -282,12 +288,12 @@ class FilPair:
 			
 		# Execute the force generating equation once to check that there are 
 		# no obvious and horrible errors
-		return force(x0)
+		# return force(x0)
 		## Optimize with fsolve and update filament  with new locations
 		x1 = fsolve(force, x0)
 		self.thick.loc = x1[0:Mn-1]
 		self.thin.loc = x1[Mn:Mn+An-1]
-		return x1
+		return (force, x0)
 
 		# Settle may be finished now
 
