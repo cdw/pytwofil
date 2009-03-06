@@ -264,11 +264,6 @@ class FilPair:
 					(1 / G) * Ck[Al[0]] * (C-Cs[Al[0]]) * sin(C))
 			# Most thin filament sites
 			for i in range(Mn+1, Mn+An-1):
-				print('=================')
-				print('i is : '+str(i))
-				print('x[i] is : '+str(x[i]))
-				if i >47:
-					pass
 				f[i] = Ak*(x[i+1]-x[i]-As) - Ak*(x[i]-x[i-1]-As)
 				if Al[i-Mn] != False:
 					G= hypot(x[i]-x[Al[i-Mn]], Sep)
@@ -291,8 +286,8 @@ class FilPair:
 		# return force(x0)
 		## Optimize with fsolve and update filament  with new locations
 		x1 = fsolve(force, x0)
-		self.thick.loc = x1[0:Mn-1]
-		self.thin.loc = x1[Mn:Mn+An-1]
+		self.thick.loc = x1[0:Mn]
+		self.thin.loc = x1[Mn:Mn+An]
 		return (force, x0)
 
 		# Settle may be finished now
