@@ -4,6 +4,7 @@
 # Revisions
 #    v 0.01/cdw     20090201  (Re)Created
 #    v 0.02/cdw     20090209  Essential structures in, bop (re)written
+#    v 0.03/cdw     20090306  Believed to be complete recreation of Matlab machinery
 #
 # ToDo
 #    u cdw          20090209  (Re)write the binding check function
@@ -195,8 +196,31 @@ class FilPair:
 		self.thick = ThickFil(thin_fil=self.thin)
 		self.thin.link_thick(self.thick)
 		
-	def settle(self):
-		"""Balance the forces felt by the two filaments"""
+	def settle(self, give_detail=0):
+		""" Relax positions to balance forces.
+		
+		Balance the forces felt by the two filaments by solving
+		for roots of the forces at each node. Optional parameter,
+		'give_detail' returns info about the optimization if set 
+		to other than zero.
+		
+		:Input:
+		
+		give_detail : number
+			0 - return only the new location vector (default)
+			1 -  return all output arguments (x1, infodict, ier, mesg)
+			
+		:Output:
+		
+		x1: numpy array
+			the solution (or the result of last iteration)
+		infodict : a dictionary of optional outputs with the keys
+			see documentation of scipy.optimize.fsolve
+		ier: an integer flag equal to 1 when a solution is found
+		mesg: a string message about the cause of failure, should
+			fsolve fail to produce a solution
+		
+		"""
 		# Create our initial guess, which is just the current
 		# location of the nodes along the thick and thin filaments
 		x0 = np.hstack((self.thick.loc, self.thin.loc))
@@ -285,14 +309,11 @@ class FilPair:
 		# no obvious and horrible errors
 		# return force(x0)
 		## Optimize with fsolve and update filament  with new locations
-		x1 = fsolve(force, x0)
+		x1 = fsolve(force, x0,full_output=give_detail)
 		self.thick.loc = x1[0:Mn]
 		self.thin.loc = x1[Mn:Mn+An]
-		return (force, x0)
-
-		# Settle may be finished now
-
-
-# Test by creation of a FilPair
-fp = FilPair(1200)
-fp.settle()
+		# Return our information
+		return (x1)
+	
+	def step(self):
+		"""Knock the """
