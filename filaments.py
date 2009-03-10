@@ -125,10 +125,40 @@ class XB:
 						 self.Gs * sin(self.Cs))
 
 
-	def transition(self):
-		"""Transition to a new state, maybe"""
-		if True:
-			pass
+	def transition(self, give_detail=0):
+		"""Transition to a new state, maybe
+		
+		This checks the XB for its current state and 
+		checks if it transitions to a new state based on the 
+		rate constants. It directly sets the new state of the 
+		XB and returns a parameter describing what occured.
+		
+		:Input:
+		
+		give_detail: int
+			0 - just return the transition flag (default)
+			1 - give back all the optional output information
+		
+		:Output:
+		
+		flag: boolean
+			False - no transition occured
+			True - some transition occured
+		"""
+		state = self.state
+		if state == 0:
+			self.bind()
+		elif state == 1:
+			self.trans_loosely
+		elif state ==2:
+			self.trans_tightly()
+		flag = state != self.state
+		if give_detail == 0:
+			return flag
+		else:
+			# TODO create a returned data structure for use 
+			# when more detail is needed 
+			return flag
 
 
 class ThickFil:
@@ -181,7 +211,9 @@ class ThinFil:
 
 	def closest_binding_site(self,XB):
 		"""Return the closest binding site, but only if it is free"""
-		closest_val = min([act_loc - XB.head_loc for act_loc in self.loc])
+		closest_val = min([act_loc - XB.head_loc[0] for act_loc in self.loc])
+		# FIXME 'numpy.ndarray' object has no attribute 'index'
+		# so next line doesn't work now that we aren't using nornal python lists
 		closest_ind = self.loc.index(closest_val)
 		if self.bound[closest_ind] is False:
 			return closest_ind
@@ -305,9 +337,6 @@ class FilPair:
 					(1 / G) * Ck[Al[An-1]] * (C-Cs[Al[An-1]]) * sin(C))
 			return f
 			
-		# Execute the force generating equation once to check that there are 
-		# no obvious and horrible errors
-		# return force(x0)
 		## Optimize with fsolve and update filament  with new locations
 		x1 = fsolve(force, x0,full_output=give_detail)
 		self.thick.loc = x1[0:Mn]
@@ -316,4 +345,13 @@ class FilPair:
 		return (x1)
 	
 	def step(self):
-		"""Knock the """
+		"""Take a single time step.
+		
+		In other words, this applies all the processes that
+		need to be gone through in order to update the 
+		model through one time step; including knocking 
+		the XBs around and balancing the forces felt by 
+		the nodes along the filaments.
+		"""
+		trans = [m.transition() for m in self.thick.myo]
+		
