@@ -211,10 +211,9 @@ class ThinFil:
 
 	def closest_binding_site(self,XB):
 		"""Return the closest binding site, but only if it is free"""
-		closest_val = min([act_loc - XB.head_loc[0] for act_loc in self.loc])
-		# FIXME 'numpy.ndarray' object has no attribute 'index'
-		# so next line doesn't work now that we aren't using nornal python lists
-		closest_ind = self.loc.index(closest_val)
+		closest_val = np.argmin(np.absolute(self.loc - XB.head_loc[0] ))
+		# FIXME I think this works but it needs checking
+		closest_ind = np.searchsorted(self.loc, closest_val)
 		if self.bound[closest_ind] is False:
 			return closest_ind
 		else:
