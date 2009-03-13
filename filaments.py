@@ -14,7 +14,7 @@
 
 import random as rn
 import numpy as np
-from numpy import array,cos,sin,arctan2,hypot,pi
+from numpy import array,exp,cos,sin,arctan2,hypot,pi
 from scipy.optimize import fsolve
 
 class XB:
@@ -57,13 +57,15 @@ class XB:
         self.head_loc = (self.loc + Xoffset, Yoffset)
         return (Xoffset, Yoffset)
 
-    def bind(self):
+    def bind(self, bop=True):
         """Check if the XB binds, update if it does"""
+        if bop is True:
+            self.bop() # 'cause it is easier to do this here
         thin_loc = self.thin.closest_binding_site(self) # get closest thin site
-        # thin_loc = (closest_val, closest_ind) or (False, False)
-        if thin_loc is False: # if that site is alrady occupied
+        # thin_loc = closest_ind or, if occupied, -closest_ind
+        if thin_loc < 0: # if that site is already occupied
             return # there's no binding
-        dist = dist_to_thin(thin_loc)
+        dist = self.dist_to_thin(thin_loc)
         if 1 - (exp(-pow(dist, 1/self.Bd))) < rn.random():
             # Where we are close enough, bind
             self.bound = thin_loc  # Where XB binds to 
@@ -157,7 +159,7 @@ class XB:
             return flag
         else:
             # TODO create a returned data structure for use 
-            # when more detail is needed 
+            #      when more detail is needed 
             return flag
 
 
@@ -211,13 +213,11 @@ class ThinFil:
 
     def closest_binding_site(self,XB):
         """Return the closest binding site, but only if it is free"""
-        closest_val = np.argmin(np.absolute(self.loc - XB.head_loc[0] ))
-        # FIXME I think this works but it needs checking
-        closest_ind = np.searchsorted(self.loc, closest_val)
+        closest_ind = np.argmin(np.absolute(self.loc - XB.head_loc[0] ))
         if self.bound[closest_ind] is False:
             return closest_ind
         else:
-            return False
+            return -closest_ind
 
 
 class FilPair:
@@ -226,6 +226,25 @@ class FilPair:
         self.thin = ThinFil(hsl)
         self.thick = ThickFil(thin_fil=self.thin)
         self.thin.link_thick(self.thick)
+        
+    def __repr__(self):
+        """ Return a representation of the thick and thin filaments.
+        
+        :Description:
+        The representation is as follows:
+            Thick -    |====================
+            Bindings -   |  |   |  |  \ \   
+            Bindings         | |  | |   \   \           
+            Thin -       ------------------------------|
+            Where | is a loosely bound XB and \ is strongly bound
+        """
+        thick = '|' + self.thick.n * '='
+        xbstr = [' ', '|', '\\']
+        thickbnd = ' ' + ''.join([xbstr[myo.state] for myo in self.thick.myo])
+        thinbnd = '  ' + ''.join([xbstr[bnd is not False] for bnd in self.thin.bound])
+        # FIXME thinbnd can only be ' ' or '|' currently
+        thin = '  ' + self.thin.n * '-' + '|'
+        return(thick + '\n' + thickbnd + '\n' + thinbnd + '\n' + thin)
         
     def settle(self, give_detail=0):
         """ Relax positions to balance forces.
@@ -342,8 +361,8 @@ class FilPair:
         self.thin.loc = x1[Mn:Mn+An]
         # Return our information
         return (x1)
-    
-    def step(self):
+        
+    def step(self, step_num=1):
         """Take a single time step.
         
         In other words, this applies all the processes that
@@ -352,5 +371,15 @@ class FilPair:
         the XBs around and balancing the forces felt by 
         the nodes along the filaments.
         """
-        trans = [m.transition() for m in self.thick.myo]
+        # TODO this is in a testing mode as of 20090312 CDW
+        allfalses = array([False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False])
+        trans = [False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+        for i in range(step_num):
+            trans = [m.transition() for m in self.thick.myo]
+            # TODO Store which XB bound and make a little likelyhood 
+            #      chart to check against prior code
+            print(np.argmin(trans==allfalses))
         
+    
+f = FilPair()
+f.step(10)
