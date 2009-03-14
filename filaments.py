@@ -14,7 +14,7 @@
 
 import random as rn
 import numpy as np
-from numpy import array,exp,cos,sin,arctan2,hypot,pi
+from numpy import array,exp,cos,sin,arctan2,hypot,sqrt,pi
 from scipy.optimize import fsolve
 
 class XB:
@@ -74,11 +74,12 @@ class XB:
     
     def trans_loosely(self):
         """When in the loosely bound state: unbind, strongly bind, or pass"""
-        dist = glob_len()
-        angl = conv_ang()
+        dist = self.glob_len()
+        angl = self.conv_ang()
         random = rn.random()
         # possibly bind tightly or unbind
-        if 1-.001*100/sqrt(2*0.2515)*(1-tanh(1*sqrt(2*0.2515)*(dist-6))) < random:
+        # FIXME binding to stongly bound is too super rare
+        if 1-.001*100/sqrt(2*0.2515)*(1-np.tanh(1*sqrt(2*0.2515)*(dist-6))) < random:
             self.state = 2
             self.Cs = self.Cv[2]
         elif (pow(exp(15 * self.Gk * 0.2515 * 
@@ -91,8 +92,8 @@ class XB:
     
     def trans_tightly(self):
         """When in the tightly bound state: unbind, loosely bind, or pass"""
-        dist = glob_len()
-        angl = conv_ang()    
+        dist = self.glob_len()
+        angl = self.conv_ang()    
         random = rn.random()
         # possibly unbind or become loosely bound
         if (0.005 * 1 / exp(self.Gk * 0.2515 *pow(dist-self.Gv[1],2) +
@@ -151,7 +152,7 @@ class XB:
         if state == 0:
             self.bind()
         elif state == 1:
-            self.trans_loosely
+            self.trans_loosely()
         elif state ==2:
             self.trans_tightly()
         flag = state != self.state
@@ -378,8 +379,14 @@ class FilPair:
             trans = [m.transition() for m in self.thick.myo]
             # TODO Store which XB bound and make a little likelyhood 
             #      chart to check against prior code
-            print(np.argmin(trans==allfalses))
+            return(np.argmin(trans==allfalses))
         
     
 f = FilPair()
-f.step(10)
+movers = []
+for i in range(100):
+    trans = f.step(1)
+    if trans!=0:
+        movers.append(trans)
+movers.sort()
+print(movers)
